@@ -169,7 +169,12 @@
           let promise = fetch(imgData)
             .then(res => res.blob())
             .then(blob => {
-              folder.file(`cropped_image_${index + 1}.png`, blob); // ZIP内に画像を追加
+              if (item.text) {
+                folder.file(`cropped_image_${item.text}.png`, blob);
+              }
+              else {
+                folder.file(`error.png`, blob);
+              }
             });
 
           // Promiseを配列に追加
@@ -252,6 +257,10 @@
           Math.trunc(trimmingRatio_Height * mat.rows)
         ));
 
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = trimMat.cols;
+        canvas.height = trimMat.rows;
         let imageData = canvas.toDataURL();
 
         // Tesseract.jsで文字認識を実行
