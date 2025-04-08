@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>画像から矩形領域を切り取る</title>
+  <style>
+    #output-canvas {
+      border: 1px solid #80c4f3;
+    }
+
+    #output-canvas2 {
+      border: 1px solid #80c4f3;
+    }
+
+    #download-button {
+      display: none;
+    }
+
+    #template-img {
+      display: none;
+    }
+
+    #template-canvas {
+      /* display: none; */
+    }
+
+    #h1 {
+      background: linear-gradient(to right, #80c4f3, #878ef8);
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="h1">画像アップロードと矩形検出</h1>
+  <img id="template-img" src="images/rank1.png">
+  <canvas id="template-canvas"></canvas>
+  <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
+  <br>
+  <canvas id="output-canvas"></canvas>
+  <canvas id="output-canvas2"></canvas>
+  <br>
+  <button id="download-button">ダウンロード</button>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://docs.opencv.org/4.10.0/opencv.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.7.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.1/dist/tesseract.min.js"></script>
+
+  <script>
+    cv.onRuntimeInitialized = function () {
+      const minWidth = 450, minHeight = 60, maxWidth = 900, maxHeight = 270; // 矩形のサイズ制限
+      const trimmingRatio_X = 0.251, trimmingRatio_Y = 0.254, trimmingRatio_Width = 0.162, trimmingRatio_Height = 0.540; // 切り取る領域の比率
+      const validImageTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+      var templateRank1Mat;
+      var mats = [];
+      var canvas, ctx;
+      var canvas2, ctx2;
+      var cnt, error_cnt;
+
+      // if ($('#template-img')[0].complete) {
+      //   let template_img = $('#template-img')[0];
+      //   let canvas = $("#template-canvas")[0];
+      //   let ctx = canvas.getContext("2d");
+      //   canvas.width = template_img.width;
+      //   canvas.height = template_img.height;
+      //   ctx.drawImage(template_img, 0, 0);
+
+
+      //   templateRank1Mat = cv.imread('template-img');
+      //   console.log(templateRank1Mat.cols, templateRank1Mat.rows);
+      // }
+      var template_img = $('#template-img')[0];
+      template_img.crossOrigin = 'anonymous';  // CORS対応を有効にする
+
+      var canvas = $('#template-canvas')[0];
+      var ctx = canvas.getContext("2d");
+
+      template_img.onload = function () {
+        canvas.width = template_img.width;
+        canvas.height = template_img.height;
+        ctx.drawImage(template_img, 0, 0);
+
+        // canvasからMatを作成
+        var templateRank1Mat = cv.imread(canvas);  // canvasを直接指定
+        console.log(templateRank1Mat.cols, templateRank1Mat.rows);
+      };
+
+      outputCanvas = $("#output-canvas")[0];
+      outputCtx = outputCanvas.getContext("2d");
+
+      // 画像アップロード時の処理
+      $("#input-file").on("change", function (e) {
+        const files = e.target.files;
+
+        // 複数ファイルの処理
+        Array.from(files).forEach((file, index) => {
+          if (file) {
+            if (!validImageTypes.includes(file.type)) {
+              $(this).val('');
+              return;
+            }
+          }
+
+          init(); // 画像処理の初期化
+
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            // 画像をOpenCVのMatに変換
+            let img = new Image();
+            img.onload = function () {
+
+              let mat = cv.imread(img);
+              let rects = detectRectangles(mat, 500, 500, 3000, 3000);
+
+              if (rects.length > 0) {
+                mat = mat.roi(expandRect(rects[0], mat, -30));
+
+                rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
+
+                processExtractText(mat, rects);
+              }
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      async function processExtractText(mat, rects) {
+        for (let index = 0; index < rects.length; index++) {
+          const rect = rects[index];
+
+          // ROIを取得
+          let mat_roi = mat.roi(expandRect(rect, mat, 3));
+
+          // extractText の非同期処理
+          let text = await extractText(mat_roi);
+
+          // text が取得できた場合
+          console.log(text);
+          if (text) {
+            console.log(cnt, text);
+          } else {
+            // extractText が失敗した場合の処理
+            if (templateRank1Mat) {
+              const match = detectRank1WithTemplate(mat_roi, templateRank1Mat);
+              let trimMat = mat_roi.roi(new cv.Rect(
+                Math.trunc(trimmingRatio_X * mat_roi.cols),
+                Math.trunc(trimmingRatio_Y * mat_roi.rows),
+                Math.trunc(trimmingRatio_Width * mat_roi.cols),
+                Math.trunc(trimmingRatio_Height * mat_roi.rows)
+              ));
+              outputCanvas.width = trimMat.cols;
+              outputCanvas.height = trimMat.rows;
+              cv.imshow(outputCanvas, trimMat);
+              if (match) {
+                text = "1";  // テンプレートマッチングで「1」を認識
+              } else {
+                text = null;
+                error_cnt++;
+              }
+            }
+          }
+
+          mats.push({
+            mat: mat_roi,
+            index: cnt,
+            text: text
+          });
+
+          // cnt == 0 でボタンを表示
+          if (cnt == 0) {
+            $("#download-button").show();
+          }
+
+          // cnt をインクリメント
+          cnt++;
+        }
+      }
+
+      // ダウンロードボタンの処理
+      $("#download-button").on("click", async function () {
+        let zip = new JSZip(); // ZIPを作成
+        let folder = zip.folder("cropped_images"); // ZIPフォルダ作成
+
+        // すべての非同期操作を追跡するための配列
+        let promises = [];
+
+        // 各画像ごとに矩形を処理
+        console.log(mats);
+        mats.forEach((item, index) => {
+
+          // 一時的なcanvasを作成
+          let tmpCanvas = document.createElement("canvas");
+          let tmpCtx = tmpCanvas.getContext("2d");
+          tmpCanvas.width = item.mat.cols;
+          tmpCanvas.height = item.mat.rows;
+
+          // 切り取った画像を描画
+          cv.imshow(tmpCanvas, item.mat);
+
+          // Canvasの内容を画像として取得
+          let imgData = tmpCanvas.toDataURL("image/png");
+
+          // Base64データをBlobに変換してZIPに追加
+          let promise = fetch(imgData)
+            .then(res => res.blob())
+            .then(blob => {
+              folder.file(`cropped_image_${index + 1}.png`, blob); // ZIP内に画像を追加
+            });
+
+          // Promiseを配列に追加
+          promises.push(promise);
+        });
+
+        // すべての非同期操作が完了するのを待つ
+        Promise.all(promises).then(() => {
+          // ZIPファイルを生成してダウンロード
+          zip.generateAsync({ type: "blob" }).then((content) => {
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(content);
+            link.download = "cropped_images.zip"; // ZIPファイル名
+            link.click();
+          });
+        });
+      });
+
+      function init() {
+        mats = [];
+        cnt = 0;
+        error_cnt = 0;
+      }
+
+      function expandRect(rect, mat, expanded_pixel) {
+        let x = Math.max(0, rect.x - expanded_pixel);
+        let y = Math.max(0, rect.y - expanded_pixel);
+        let width = Math.min(mat.cols - x, rect.width + (expanded_pixel * 2));
+        let height = Math.min(mat.rows - y, rect.height + (expanded_pixel * 2));
+
+        return new cv.Rect(x, y, width, height);
+      }
+
+      function detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight) {
+        // 2値化処理
+        let gray = new cv.Mat();
+        cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
+
+        // エッジ検出
+        let edges = new cv.Mat();
+        cv.Canny(gray, edges, 300, 300);
+
+        // 輪郭検出
+        let contours = new cv.MatVector();
+        let hierarchy = new cv.Mat();
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let rects = []; // 輪郭から検出した矩形を格納
+
+        // 輪郭から矩形を検出
+        for (let i = 0; i < contours.size(); i++) {
+          let contour = contours.get(i);
+          let approx = new cv.Mat();
+          // 精度を少し緩和して、丸みを帯びた角を認識しやすくする
+          cv.approxPolyDP(contour, approx, 0.05 * cv.arcLength(contour, true), true);  // 精度を調整
+
+          // 角が丸い矩形も検出するために、四辺形をチェックする
+          if (approx.rows === 4 && cv.isContourConvex(approx)) {
+            let rect = cv.boundingRect(approx);
+            if (rect.width >= minWidth && rect.height >= minHeight && rect.width <= maxWidth && rect.height <= maxHeight) {
+              rects.push(rect);
+            }
+          }
+          approx.delete();
+        }
+
+        gray.delete();
+        edges.delete();
+        contours.delete();
+        hierarchy.delete();
+
+        return rects;
+      }
+
+      async function extractText(mat) {
+        let trimMat = mat.roi(new cv.Rect(
+          Math.trunc(trimmingRatio_X * mat.cols),
+          Math.trunc(trimmingRatio_Y * mat.rows),
+          Math.trunc(trimmingRatio_Width * mat.cols),
+          Math.trunc(trimmingRatio_Height * mat.rows)
+        ));
+
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = trimMat.cols;
+        canvas.height = trimMat.rows;
+        cv.imshow(canvas, trimMat);
+
+        let imageData = canvas.toDataURL();
+
+        // Tesseract.jsで文字認識を実行
+        let text = null;
+        await Tesseract.recognize(imageData, 'eng').then(({ data: { text: recognizedText } }) => {
+          const regex = /\b\d+\b/g;
+          let matches = recognizedText.match(regex);
+          if (matches) {
+            text = matches[0];  // マッチした数字を返す
+          }
+          else {
+            text = null;
+          }
+        });
+
+        return text;
+      }
+
+      function detectRank1WithTemplate(mat, templateMat) {
+        const result = new cv.Mat();
+        const matchThreshold = 0.8;
+        let foundMatch = false;
+
+        // const scales = [0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2];
+        const scales = [1];
+
+        for (let scale of scales) {
+          let resizedTemplate = new cv.Mat();
+          let newSize = new cv.Size(
+            Math.round(templateMat.cols * scale),
+            Math.round(templateMat.rows * scale)
+          );
+          cv.resize(templateMat, resizedTemplate, newSize, 0, 0, cv.INTER_AREA);
+
+          if (mat.cols >= resizedTemplate.cols && mat.rows >= resizedTemplate.rows) {
+            cv.matchTemplate(mat, resizedTemplate, result, cv.TM_CCOEFF_NORMED);
+            let minMax = cv.minMaxLoc(result);
+            if (minMax.maxVal > matchThreshold) {
+              foundMatch = true;
+              resizedTemplate.delete();
+              break;
+            }
+          }
+
+          resizedTemplate.delete();
+        }
+
+        result.delete();
+        return foundMatch;
+      }
+
+    };
+  </script>
+</body>
+
+</html>
