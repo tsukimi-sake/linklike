@@ -61,7 +61,7 @@
       var cnt, error_cnt;
 
       var template_img = $('#template-img')[0];
-      // template_img.crossOrigin = 'anonymous';  // CORS対応を有効にする
+      template_img.crossOrigin = 'anonymous';
 
       var canvas = $('#template-canvas')[0];
       var ctx = canvas.getContext("2d");
