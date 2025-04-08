@@ -161,10 +161,10 @@
         }
       }
 
-      console.log(items);
-
       // ダウンロードボタンの処理
       $("#download-button").on("click", async function () {
+        console.log(items);
+        
         let zip = new JSZip(); // ZIPを作成
         let folder = zip.folder("cropped_images"); // ZIPフォルダ作成
 
