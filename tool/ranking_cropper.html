@@ -164,7 +164,7 @@
       // ダウンロードボタンの処理
       $("#download-button").on("click", async function () {
         console.log(items);
-        
+
         let zip = new JSZip(); // ZIPを作成
         let folder = zip.folder("cropped_images"); // ZIPフォルダ作成
 
@@ -299,7 +299,7 @@
 
       function detectRank1WithTemplate(mat, templateMat) {
         const result = new cv.Mat();
-        const matchThreshold = 0.6;
+        const matchThreshold = 0.7;
         let foundMatch = false;
 
         const scales = [0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2];
