@@ -55,7 +55,7 @@
       const trimmingRatio_X = 0.251, trimmingRatio_Y = 0.254, trimmingRatio_Width = 0.162, trimmingRatio_Height = 0.540; // 切り取る領域の比率
       const validImageTypes = ['image/png', 'image/jpeg', 'image/jpg'];
       var templateRank1Mat;
-      var mats = [];
+      var items = [];
       var canvas, ctx;
       var canvas2, ctx2;
       var cnt, error_cnt;
@@ -71,7 +71,6 @@
         canvas.height = template_img.height;
         ctx.drawImage(template_img, 0, 0);
         templateRank1Mat = cv.imread(canvas);
-        console.log(templateRank1Mat.cols, templateRank1Mat.rows);
       };
 
       outputCanvas = $("#output-canvas")[0];
@@ -125,12 +124,7 @@
           // extractText の非同期処理
           let text = await extractText(mat_roi);
 
-          // text が取得できた場合
-          console.log(text);
-          if (text) {
-            console.log(cnt, text);
-          } else {
-            // extractText が失敗した場合の処理
+          if (!text) {
             if (templateRank1Mat) {
               const match = detectRank1WithTemplate(mat_roi, templateRank1Mat);
               let trimMat = mat_roi.roi(new cv.Rect(
@@ -151,7 +145,7 @@
             }
           }
 
-          mats.push({
+          items.push({
             mat: mat_roi,
             index: cnt,
             text: text
@@ -167,6 +161,8 @@
         }
       }
 
+      console.log(items);
+
       // ダウンロードボタンの処理
       $("#download-button").on("click", async function () {
         let zip = new JSZip(); // ZIPを作成
@@ -176,8 +172,7 @@
         let promises = [];
 
         // 各画像ごとに矩形を処理
-        console.log(mats);
-        mats.forEach((item, index) => {
+        items.forEach((item, index) => {
 
           // 一時的なcanvasを作成
           let tmpCanvas = document.createElement("canvas");
@@ -215,7 +210,7 @@
       });
 
       function init() {
-        mats = [];
+        items = [];
         cnt = 0;
         error_cnt = 0;
       }
