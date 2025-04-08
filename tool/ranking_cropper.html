@@ -60,20 +60,8 @@
       var canvas2, ctx2;
       var cnt, error_cnt;
 
-      // if ($('#template-img')[0].complete) {
-      //   let template_img = $('#template-img')[0];
-      //   let canvas = $("#template-canvas")[0];
-      //   let ctx = canvas.getContext("2d");
-      //   canvas.width = template_img.width;
-      //   canvas.height = template_img.height;
-      //   ctx.drawImage(template_img, 0, 0);
-
-
-      //   templateRank1Mat = cv.imread('template-img');
-      //   console.log(templateRank1Mat.cols, templateRank1Mat.rows);
-      // }
       var template_img = $('#template-img')[0];
-      template_img.crossOrigin = 'anonymous';  // CORS対応を有効にする
+      // template_img.crossOrigin = 'anonymous';  // CORS対応を有効にする
 
       var canvas = $('#template-canvas')[0];
       var ctx = canvas.getContext("2d");
@@ -82,9 +70,7 @@
         canvas.width = template_img.width;
         canvas.height = template_img.height;
         ctx.drawImage(template_img, 0, 0);
-
-        // canvasからMatを作成
-        var templateRank1Mat = cv.imread(canvas);  // canvasを直接指定
+        templateRank1Mat = cv.imread(canvas);
         console.log(templateRank1Mat.cols, templateRank1Mat.rows);
       };
 
