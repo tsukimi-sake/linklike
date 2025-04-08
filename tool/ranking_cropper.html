@@ -10,10 +10,6 @@
       border: 1px solid #80c4f3;
     }
 
-    #output-canvas2 {
-      border: 1px solid #80c4f3;
-    }
-
     #download-button {
       display: none;
     }
@@ -23,7 +19,7 @@
     }
 
     #template-canvas {
-      /* display: none; */
+      display: none;
     }
 
     #h1 {
@@ -40,7 +36,6 @@
   <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
   <br>
   <canvas id="output-canvas"></canvas>
-  <canvas id="output-canvas2"></canvas>
   <br>
   <button id="download-button">ダウンロード</button>
 
@@ -57,7 +52,6 @@
       var templateRank1Mat;
       var items = [];
       var canvas, ctx;
-      var canvas2, ctx2;
       var cnt, error_cnt;
 
       var template_img = $('#template-img')[0];
@@ -73,8 +67,8 @@
         templateRank1Mat = cv.imread(canvas);
       };
 
-      outputCanvas = $("#output-canvas")[0];
-      outputCtx = outputCanvas.getContext("2d");
+      // outputCanvas = $("#output-canvas")[0];
+      // outputCtx = outputCanvas.getContext("2d");
 
       // 画像アップロード時の処理
       $("#input-file").on("change", function (e) {
@@ -106,6 +100,10 @@
                 rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
 
                 processExtractText(mat, rects);
+
+                if (rects) {
+                  $("#download-button").show();
+                }
               }
             };
             img.src = e.target.result;
@@ -127,15 +125,7 @@
           if (!text) {
             if (templateRank1Mat) {
               const match = detectRank1WithTemplate(mat_roi, templateRank1Mat);
-              let trimMat = mat_roi.roi(new cv.Rect(
-                Math.trunc(trimmingRatio_X * mat_roi.cols),
-                Math.trunc(trimmingRatio_Y * mat_roi.rows),
-                Math.trunc(trimmingRatio_Width * mat_roi.cols),
-                Math.trunc(trimmingRatio_Height * mat_roi.rows)
-              ));
-              outputCanvas.width = trimMat.cols;
-              outputCanvas.height = trimMat.rows;
-              cv.imshow(outputCanvas, trimMat);
+
               if (match) {
                 text = "1";  // テンプレートマッチングで「1」を認識
               } else {
@@ -151,12 +141,6 @@
             text: text
           });
 
-          // cnt == 0 でボタンを表示
-          if (cnt == 0) {
-            $("#download-button").show();
-          }
-
-          // cnt をインクリメント
           cnt++;
         }
       }
@@ -179,11 +163,6 @@
           let tmpCtx = tmpCanvas.getContext("2d");
           tmpCanvas.width = item.mat.cols;
           tmpCanvas.height = item.mat.rows;
-
-          // 切り取った画像を描画
-          cv.imshow(tmpCanvas, item.mat);
-
-          // Canvasの内容を画像として取得
           let imgData = tmpCanvas.toDataURL("image/png");
 
           // Base64データをBlobに変換してZIPに追加
@@ -272,12 +251,6 @@
           Math.trunc(trimmingRatio_Width * mat.cols),
           Math.trunc(trimmingRatio_Height * mat.rows)
         ));
-
-        let canvas = document.createElement('canvas');
-        let ctx = canvas.getContext('2d');
-        canvas.width = trimMat.cols;
-        canvas.height = trimMat.rows;
-        cv.imshow(canvas, trimMat);
 
         let imageData = canvas.toDataURL();
 
