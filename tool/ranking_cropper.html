@@ -304,11 +304,10 @@
 
       function detectRank1WithTemplate(mat, templateMat) {
         const result = new cv.Mat();
-        const matchThreshold = 0.8;
+        const matchThreshold = 0.6;
         let foundMatch = false;
 
-        // const scales = [0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2];
-        const scales = [1];
+        const scales = [0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2];
 
         for (let scale of scales) {
           let resizedTemplate = new cv.Mat();
