@@ -282,6 +282,8 @@
         let ctx = canvas.getContext('2d');
         canvas.width = trimMat.cols;
         canvas.height = trimMat.rows;
+        cv.imshow(canvas, trimMat);
+
         let imageData = canvas.toDataURL();
 
         // Tesseract.jsで文字認識を実行
