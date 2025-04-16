@@ -6,35 +6,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>画像から矩形領域を切り取る</title>
   <style>
-    #h1 {
+    body {
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    #title {
       background: linear-gradient(to right, #80c4f3, #878ef8);
       color: white;
+      padding: 20px;
+      font-size: 22px;
+      width: 100%;
+      text-align: center;
     }
 
-    #output-canvas {
-      border: 1px solid #80c4f3;
-      display: none;
-    }
-
-    #template-img {
-      display: none;
-    }
-
-    #template-canvas {
+    #template-img,
+    #template-canvas,
+    #input-file {
       display: none;
     }
 
     #drop-area {
       border: 2px dashed #80c4f3;
       border-radius: 10px;
-      width: 300px;
+      width: 80%;
+      height: 200px;
       padding: 20px;
       text-align: center;
       cursor: pointer;
       color: #333;
       background-color: #f9f9f9;
-      margin-bottom: 10px;
+      margin: 20px auto;
       transition: background-color 0.3s;
+    }
+
+    #drop-area p {
+      margin: 0;
+      font-size: 18px;
     }
 
     #drop-area:hover {
@@ -46,18 +54,12 @@
       font-size: 14px;
     }
 
-    #input-file {
-      display: none;
-    }
-
     #progress-container {
-      width: 300px;
+      width: 80%;
       height: 20px;
+      margin: 20px auto 0 auto;
       border: 1px solid #ccc;
-      margin-top: 10px;
-      display: none;
       border-radius: 10px;
-      overflow: hidden;
       box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
     }
 
@@ -68,27 +70,49 @@
       border-radius: 10px;
       transition: width 0.3s ease;
     }
+
+    #download-button {
+      display: block;
+      margin: 20px auto;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      background: linear-gradient(to right, #80c4f3, #878ef8);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      transition: background 0.3s, transform 0.2s;
+    }
+
+    #download-button:hover {
+      transform: scale(1.03);
+    }
+
+    #download-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
   </style>
 </head>
 
 <body>
-  <h1 id="h1">画像アップロードと矩形検出</h1>
+  <div id="title">ライグラ ランキング切り抜きツール</div>
   <img id="template-img" src="images/rank1.png">
   <canvas id="template-canvas"></canvas>
 
   <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
 
   <div id="drop-area">
-    <p>ここに画像をドラッグ＆ドロップ、またはクリックして選択</p>
+    <p>スクリーンショットを選択</p>
     <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
   </div>
-
 
   <div id="progress-container">
     <div id="progress-bar"></div>
   </div>
 
-  <canvas id="output-canvas"></canvas>
   <button id="download-button" disabled>ダウンロード</button>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -105,8 +129,6 @@
       var templateRank1Mat;
       var items = [];
       var cnt, error_cnt;
-      var outputCanvas = $("#output-canvas")[0];
-      var outputCtx = outputCanvas.getContext("2d");
 
       const WORKER_COUNT = 3;
       let tesseractWorkers = [], workerIndex = 0;
@@ -203,14 +225,6 @@
 
           items.push({ mat: mat_roi, index: cnt, text: text });
           cnt++;
-
-          console.log(`[DEBUG] アイテム追加: index=${cnt}, text=${text}, size=${mat_roi.cols}x${mat_roi.rows}`);
-          // デバッグ用Canvasに描画（確認用）
-          const debugCanvas = document.createElement("canvas");
-          debugCanvas.width = mat_roi.cols;
-          debugCanvas.height = mat_roi.rows;
-          document.body.appendChild(debugCanvas);  // 一時的に表示
-          cv.imshow(debugCanvas, mat_roi);
         }
       }
 
@@ -218,9 +232,12 @@
         const files = e.target.files;
         if (!files.length) return;
 
-        $("#download-button").prop("disabled", true).hide();
-        $("#progress-container").show();
+        $("#download-button").prop("disabled", true);
+        $("#progress-bar").css("transition", "none");
         $("#progress-bar").css("width", "0%");
+        requestAnimationFrame(() => {
+          $("#progress-bar").css("transition", "width 0.3s ease");
+        });
 
         init();
         tesseractWorkers = await createWorkerPool(WORKER_COUNT);
@@ -264,7 +281,6 @@
         }
 
         await Promise.all(filePromises);
-        $("#progress-container").fadeOut();
 
         for (const worker of tesseractWorkers) {
           await worker.terminate();
@@ -272,7 +288,7 @@
         tesseractWorkers = [];
 
         if (items.length > 0) {
-          $("#download-button").prop("disabled", false).show();
+          $("#download-button").prop("disabled", false);
         }
       });
 
