@@ -95,8 +95,6 @@
               let mat = cv.imread(img);
               let rects = detectRectangles(mat, 500, 500, 3000, 3000);
 
-              console.log(rects);
-
               if (rects.length > 0) {
                 mat = mat.roi(expandRect(rects[0], mat, -30));
 
@@ -122,6 +120,8 @@
           // ROIを取得
           let mat_roi = mat.roi(expandRect(rect, mat, 3));
 
+
+
           // extractText の非同期処理
           let text = await extractText(mat_roi);
 
@@ -144,12 +144,23 @@
             text: text
           });
 
+          console.log(`[DEBUG] アイテム追加: index=${cnt}, text=${text}, size=${mat_roi.cols}x${mat_roi.rows}`);
+          // デバッグ用Canvasに描画（確認用）
+          const debugCanvas = document.createElement("canvas");
+          debugCanvas.width = mat_roi.cols;
+          debugCanvas.height = mat_roi.rows;
+          document.body.appendChild(debugCanvas);  // 一時的に表示
+          cv.imshow(debugCanvas, mat_roi);
+
+
           cnt++;
         }
       }
 
       // ダウンロードボタンの処理
       $("#download-button").on("click", async function () {
+        console.log("[DEBUG] ダウンロードボタンが押されました");
+        console.log(`[DEBUG] items.length = ${items.length}`);
 
         let zip = new JSZip(); // ZIPを作成
         let folder = zip.folder("cropped_images"); // ZIPフォルダ作成
@@ -165,7 +176,15 @@
           let tmpCtx = tmpCanvas.getContext("2d");
           tmpCanvas.width = item.mat.cols;
           tmpCanvas.height = item.mat.rows;
+          cv.imshow(tmpCanvas, item.mat);
           let imgData = tmpCanvas.toDataURL("image/png");
+
+          // OpenCVのMat → HTML Canvasに描画
+          console.log(`[DEBUG] ${index}番目の画像を描画: size=${item.mat.cols}x${item.mat.rows}`);
+
+          // デバッグ表示（任意、数が多ければ非表示に）
+          document.body.appendChild(tmpCanvas);
+          console.log(`[DEBUG] DataURLの長さ: ${imgData.length}`);
 
           // Base64データをBlobに変換してZIPに追加
           let promise = fetch(imgData)
