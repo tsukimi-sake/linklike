@@ -4,11 +4,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>画像から矩形領域を切り取る</title>
+  <title>ライグラ ランキング切り抜きツール</title>
   <style>
     body {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      min-height: 100vh;
+      overflow-x: hidden;
       font-family: sans-serif;
+    }
+
+    #title,
+    #drop-area,
+    #progress-container,
+    #download-button {
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     #title {
