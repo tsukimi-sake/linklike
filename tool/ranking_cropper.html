@@ -336,10 +336,33 @@
         const matchThreshold = 0.6;
         let foundMatch = false;
 
-        cv.matchTemplate(mat, templateMat, result, cv.TM_CCOEFF_NORMED);
-        let minMax = cv.minMaxLoc(result);
-        if (minMax.maxVal > matchThreshold) {
-          foundMatch = true;
+        // cv.matchTemplate(mat, templateMat, result, cv.TM_CCOEFF_NORMED);
+        // let minMax = cv.minMaxLoc(result);
+        // if (minMax.maxVal > matchThreshold) {
+        //   foundMatch = true;
+        // }
+
+        const scales = [0.9, 1.0, 1.1];
+
+        for (let scale of scales) {
+          let resizedTemplate = new cv.Mat();
+          let newSize = new cv.Size(
+            Math.round(templateMat.cols * scale),
+            Math.round(templateMat.rows * scale)
+          );
+          cv.resize(templateMat, resizedTemplate, newSize, 0, 0, cv.INTER_AREA);
+
+          if (mat.cols >= resizedTemplate.cols && mat.rows >= resizedTemplate.rows) {
+            cv.matchTemplate(mat, resizedTemplate, result, cv.TM_CCOEFF_NORMED);
+            let minMax = cv.minMaxLoc(result);
+            if (minMax.maxVal > matchThreshold) {
+              foundMatch = true;
+              resizedTemplate.delete();
+              break;
+            }
+          }
+
+          resizedTemplate.delete();
         }
 
         result.delete();
