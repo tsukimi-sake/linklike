@@ -203,6 +203,14 @@
 
           items.push({ mat: mat_roi, index: cnt, text: text });
           cnt++;
+
+          console.log(`[DEBUG] アイテム追加: index=${cnt}, text=${text}, size=${mat_roi.cols}x${mat_roi.rows}`);
+          // デバッグ用Canvasに描画（確認用）
+          const debugCanvas = document.createElement("canvas");
+          debugCanvas.width = mat_roi.cols;
+          debugCanvas.height = mat_roi.rows;
+          document.body.appendChild(debugCanvas);  // 一時的に表示
+          cv.imshow(debugCanvas, mat_roi);
         }
       }
 
