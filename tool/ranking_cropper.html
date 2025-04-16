@@ -336,12 +336,6 @@
         const matchThreshold = 0.6;
         let foundMatch = false;
 
-        // cv.matchTemplate(mat, templateMat, result, cv.TM_CCOEFF_NORMED);
-        // let minMax = cv.minMaxLoc(result);
-        // if (minMax.maxVal > matchThreshold) {
-        //   foundMatch = true;
-        // }
-
         const scales = [0.9, 1.0, 1.1];
 
         for (let scale of scales) {
