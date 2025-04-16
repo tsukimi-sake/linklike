@@ -8,9 +8,6 @@
   <style>
     #output-canvas {
       border: 1px solid #80c4f3;
-    }
-
-    #download-button {
       display: none;
     }
 
@@ -35,10 +32,13 @@
   <canvas id="template-canvas"></canvas>
 
   <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
-  <br>
+  
+  <div id="progress-container" style="width: 300px; height: 20px; border: 1px solid #ccc; margin-top: 10px; display: none;">
+    <div id="progress-bar" style="height: 100%; width: 0%; background-color: #80c4f3;"></div>
+  </div>
+
   <canvas id="output-canvas"></canvas>
-  <br>
-  <button id="download-button">ダウンロード</button>
+  <button id="download-button" disabled>ダウンロード</button>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://docs.opencv.org/4.10.0/opencv.js"></script>
@@ -72,45 +72,71 @@
       outputCtx = outputCanvas.getContext("2d");
 
       // 画像アップロード時の処理
-      $("#input-file").on("change", function (e) {
+      $("#input-file").on("change", async function (e) {
         const files = e.target.files;
+        if (!file.length) return;
+
+        $("#download-button").prop("disabled", true).hide();
+        $("#progress-container").show();
+        $("#progress-bar").css("width", "0%");
+
+        init();
+        let filePromises = [];
+        let completed = 0;
+
+        const updateProgress = () => {
+          completed++;
+          const percent = Math.floor((completed / files.length) * 100);
+          $("#progress-bar").css("width", `${percent}%`);
+        };
 
         // 複数ファイルの処理
-        Array.from(files).forEach((file, index) => {
-          if (file) {
-            if (!validImageTypes.includes(file.type)) {
-              $(this).val('');
-              return;
-            }
-          }
+        for (const file of files) {
+          if (!validImageTypes.includes(file.type)) continue;
 
-          init(); // 画像処理の初期化
+        // Array.from(files).forEach((file, index) => {
+          // if (file) {
+          //   if (!validImageTypes.includes(file.type)) {
+          //     $(this).val('');
+          //     return;
+          //   }
+          // }
 
-          const reader = new FileReader();
-          reader.onload = function (e) {
-            // 画像をOpenCVのMatに変換
-            let img = new Image();
-            img.onload = function () {
+          const promise = new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+            
+              let img = new Image();
+              img.onload = async function () {
 
-              let mat = cv.imread(img);
-              let rects = detectRectangles(mat, 500, 500, 3000, 3000);
+                let mat = cv.imread(img);
+                let rects = detectRectangles(mat, 500, 500, 3000, 3000);
 
-              if (rects.length > 0) {
-                mat = mat.roi(expandRect(rects[0], mat, -30));
+                if (rects.length > 0) {
+                  mat = mat.roi(expandRect(rects[0], mat, -30));
+                  rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
 
-                rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
-
-                processExtractText(mat, rects);
-
-                if (rects) {
-                  $("#download-button").show();
+                  await processExtractText(mat, rects);
                 }
-              }
+
+                updateProgress();
+                resolve();
+              };
+              img.src = e.target.result;
             };
-            img.src = e.target.result;
-          };
-          reader.readAsDataURL(file);
-        });
+            reader.readAsDataURL(file);
+          });
+
+          filePromises.push(promise);
+        }
+
+        await Promise.all(filePromises);
+
+        $("#progress-container").fadeOut();
+
+        if (items.length > 0 ) {
+          $("#download-button").prop("disabled", false);
+        }
       });
 
       async function processExtractText(mat, rects) {
@@ -144,15 +170,6 @@
             text: text
           });
 
-          console.log(`[DEBUG] アイテム追加: index=${cnt}, text=${text}, size=${mat_roi.cols}x${mat_roi.rows}`);
-          // デバッグ用Canvasに描画（確認用）
-          const debugCanvas = document.createElement("canvas");
-          debugCanvas.width = mat_roi.cols;
-          debugCanvas.height = mat_roi.rows;
-          document.body.appendChild(debugCanvas);  // 一時的に表示
-          cv.imshow(debugCanvas, mat_roi);
-
-
           cnt++;
         }
       }
@@ -178,13 +195,6 @@
           tmpCanvas.height = item.mat.rows;
           cv.imshow(tmpCanvas, item.mat);
           let imgData = tmpCanvas.toDataURL("image/png");
-
-          // OpenCVのMat → HTML Canvasに描画
-          console.log(`[DEBUG] ${index}番目の画像を描画: size=${item.mat.cols}x${item.mat.rows}`);
-
-          // デバッグ表示（任意、数が多ければ非表示に）
-          document.body.appendChild(tmpCanvas);
-          console.log(`[DEBUG] DataURLの長さ: ${imgData.length}`);
 
           // Base64データをBlobに変換してZIPに追加
           let promise = fetch(imgData)
@@ -307,7 +317,7 @@
         const matchThreshold = 0.6;
         let foundMatch = false;
 
-        const scales = [0.8, 0.9, 1.0, 1.1, 1.2];
+        const scales = [0.9, 1.0, 1.1];
 
         for (let scale of scales) {
           let resizedTemplate = new cv.Mat();
