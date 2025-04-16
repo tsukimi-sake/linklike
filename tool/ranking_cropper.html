@@ -246,6 +246,8 @@
                 let mat = cv.imread(img);
                 let rects = detectRectangles(mat, 500, 500, 3000, 3000);
 
+                console.log(rects);
+
                 if (rects.length > 0) {
                   mat = mat.roi(expandRect(rects[0], mat, -30));
                   rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
