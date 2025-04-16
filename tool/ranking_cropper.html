@@ -74,7 +74,7 @@
       // 画像アップロード時の処理
       $("#input-file").on("change", async function (e) {
         const files = e.target.files;
-        if (!file.length) return;
+        if (!files.length) return;
 
         $("#download-button").prop("disabled", true).hide();
         $("#progress-container").show();
