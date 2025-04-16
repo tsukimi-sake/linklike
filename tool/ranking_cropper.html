@@ -98,7 +98,7 @@
 
   <script>
     cv.onRuntimeInitialized = function () {
-      const minWidth = 450, minHeight = 60, maxWidth = 900, maxHeight = 270;
+      const minWidth = 350, minHeight = 60, maxWidth = 900, maxHeight = 270;
       const trimmingRatio_X = 0.251, trimmingRatio_Y = 0.254, trimmingRatio_Width = 0.162, trimmingRatio_Height = 0.540;
       const validImageTypes = ['image/png', 'image/jpeg', 'image/jpg'];
 
@@ -250,7 +250,6 @@
                   mat = mat.roi(expandRect(rects[0], mat, -30));
                   rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
 
-                  console.log(rects);
                   await processExtractText(mat, rects);
                 }
                 updateProgress();
