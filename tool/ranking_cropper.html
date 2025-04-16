@@ -24,6 +24,32 @@
       display: none;
     }
 
+    #drop-area {
+      border: 2px dashed #80c4f3;
+      border-radius: 10px;
+      width: 300px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      color: #333;
+      background-color: #f9f9f9;
+      margin-bottom: 10px;
+      transition: background-color 0.3s;
+    }
+
+    #drop-area:hover {
+      background-color: #e6f3fc;
+    }
+
+    #drop-area p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    #input-file {
+      display: none;
+    }
+
     #progress-container {
       width: 300px;
       height: 20px;
@@ -52,9 +78,14 @@
 
   <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
 
-  <div id="progress-container"
-    style="width: 300px; height: 20px; border: 1px solid #ccc; margin-top: 10px; display: none;">
-    <div id="progress-bar" style="height: 100%; width: 0%; background-color: #80c4f3;"></div>
+  <div id="drop-area">
+    <p>ここに画像をドラッグ＆ドロップ、またはクリックして選択</p>
+    <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
+  </div>
+
+
+  <div id="progress-container">
+    <div id="progress-bar"></div>
   </div>
 
   <canvas id="output-canvas"></canvas>
@@ -84,6 +115,35 @@
       const canvas = $('#template-canvas')[0];
       const ctx = canvas.getContext("2d");
       template_img.crossOrigin = 'anonymous';
+      const dropArea = document.getElementById("drop-area");
+      const inputFile = document.getElementById("input-file");
+
+      // クリックでファイル選択を開く
+      $("#drop-area").on("click", function () {
+        $("#input-file").click();
+      });
+
+      // ドラッグオーバー時の処理
+      $("#drop-area").on("dragover", function (e) {
+        e.preventDefault();
+        $(this).css("background-color", "#dbeeff");
+      });
+
+      // ドラッグアウト時の処理
+      $("#drop-area").on("dragleave", function () {
+        $(this).css("background-color", "#f9f9f9");
+      });
+
+      // ドロップ時の処理
+      $("#drop-area").on("drop", function (e) {
+        e.preventDefault();
+        $(this).css("background-color", "#f9f9f9");
+
+        const dt = e.originalEvent.dataTransfer;
+        $("#input-file")[0].files = dt.files;
+        $("#input-file").trigger("change");
+      });
+
 
       template_img.onload = function () {
         canvas.width = template_img.width;
