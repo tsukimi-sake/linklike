@@ -362,7 +362,7 @@
           let promise = fetch(imgData)
             .then(res => res.blob())
             .then(blob => {
-              const fileName = item.text ? `cropped_image_${item.text}.png` : `error.png`;
+              const fileName = item.text ? `${item.text}.png` : `error.png`;
               folder.file(fileName, blob);
             });
 
