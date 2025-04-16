@@ -33,6 +33,7 @@
   <h1 id="h1">画像アップロードと矩形検出</h1>
   <img id="template-img" src="images/rank1.png">
   <canvas id="template-canvas"></canvas>
+
   <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
   <br>
   <canvas id="output-canvas"></canvas>
@@ -67,8 +68,8 @@
         templateRank1Mat = cv.imread(canvas);
       };
 
-      // outputCanvas = $("#output-canvas")[0];
-      // outputCtx = outputCanvas.getContext("2d");
+      outputCanvas = $("#output-canvas")[0];
+      outputCtx = outputCanvas.getContext("2d");
 
       // 画像アップロード時の処理
       $("#input-file").on("change", function (e) {
@@ -93,6 +94,8 @@
 
               let mat = cv.imread(img);
               let rects = detectRectangles(mat, 500, 500, 3000, 3000);
+
+              console.log(rects);
 
               if (rects.length > 0) {
                 mat = mat.roi(expandRect(rects[0], mat, -30));
@@ -147,7 +150,6 @@
 
       // ダウンロードボタンの処理
       $("#download-button").on("click", async function () {
-        console.log(items);
 
         let zip = new JSZip(); // ZIPを作成
         let folder = zip.folder("cropped_images"); // ZIPフォルダ作成
