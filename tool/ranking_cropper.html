@@ -6,6 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>画像から矩形領域を切り取る</title>
   <style>
+    #h1 {
+      background: linear-gradient(to right, #80c4f3, #878ef8);
+      color: white;
+    }
+
     #output-canvas {
       border: 1px solid #80c4f3;
       display: none;
@@ -19,9 +24,23 @@
       display: none;
     }
 
-    #h1 {
+    #progress-container {
+      width: 300px;
+      height: 20px;
+      border: 1px solid #ccc;
+      margin-top: 10px;
+      display: none;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
       background: linear-gradient(to right, #80c4f3, #878ef8);
-      color: white;
+      border-radius: 10px;
+      transition: width 0.3s ease;
     }
   </style>
 </head>
@@ -32,8 +51,9 @@
   <canvas id="template-canvas"></canvas>
 
   <input type="file" id="input-file" accept="image/png, image/jpeg, image/jpg" multiple>
-  
-  <div id="progress-container" style="width: 300px; height: 20px; border: 1px solid #ccc; margin-top: 10px; display: none;">
+
+  <div id="progress-container"
+    style="width: 300px; height: 20px; border: 1px solid #ccc; margin-top: 10px; display: none;">
     <div id="progress-bar" style="height: 100%; width: 0%; background-color: #80c4f3;"></div>
   </div>
 
