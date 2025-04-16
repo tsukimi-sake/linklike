@@ -47,19 +47,23 @@
 
   <script>
     cv.onRuntimeInitialized = function () {
-      const minWidth = 450, minHeight = 60, maxWidth = 900, maxHeight = 270; // 矩形のサイズ制限
-      const trimmingRatio_X = 0.251, trimmingRatio_Y = 0.254, trimmingRatio_Width = 0.162, trimmingRatio_Height = 0.540; // 切り取る領域の比率
+      const minWidth = 450, minHeight = 60, maxWidth = 900, maxHeight = 270;
+      const trimmingRatio_X = 0.251, trimmingRatio_Y = 0.254, trimmingRatio_Width = 0.162, trimmingRatio_Height = 0.540;
       const validImageTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+
       var templateRank1Mat;
       var items = [];
-      var canvas, ctx;
       var cnt, error_cnt;
+      var outputCanvas = $("#output-canvas")[0];
+      var outputCtx = outputCanvas.getContext("2d");
 
-      var template_img = $('#template-img')[0];
+      const WORKER_COUNT = 3;
+      let tesseractWorkers = [], workerIndex = 0;
+
+      const template_img = $('#template-img')[0];
+      const canvas = $('#template-canvas')[0];
+      const ctx = canvas.getContext("2d");
       template_img.crossOrigin = 'anonymous';
-
-      var canvas = $('#template-canvas')[0];
-      var ctx = canvas.getContext("2d");
 
       template_img.onload = function () {
         canvas.width = template_img.width;
@@ -68,10 +72,60 @@
         templateRank1Mat = cv.imread(canvas);
       };
 
-      outputCanvas = $("#output-canvas")[0];
-      outputCtx = outputCanvas.getContext("2d");
+      async function createWorkerPool(count) {
+        const workers = [];
+        for (let i = 0; i < count; i++) {
+          const worker = Tesseract.createWorker();
+          await worker.load();
+          await worker.loadLanguage('eng');
+          await worker.initialize('eng');
+          workers.push(worker);
+        }
+        return workers;
+      }
 
-      // 画像アップロード時の処理
+      async function extractTextWithWorker(mat) {
+        let trimMat = mat.roi(new cv.Rect(
+          Math.trunc(trimmingRatio_X * mat.cols),
+          Math.trunc(trimmingRatio_Y * mat.rows),
+          Math.trunc(trimmingRatio_Width * mat.cols),
+          Math.trunc(trimmingRatio_Height * mat.rows)
+        ));
+
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = trimMat.cols;
+        canvas.height = trimMat.rows;
+        cv.imshow(canvas, trimMat);
+
+        let imageData = canvas.toDataURL();
+
+        let currentWorker = tesseractWorkers[workerIndex];
+        workerIndex = (workerIndex + 1) % tesseractWorkers.length;
+
+        let result = await currentWorker.recognize(imageData);
+        const regex = /\b\d+\b/g;
+        let matches = result.data.text.match(regex);
+        return matches ? matches[0] : null;
+      }
+
+      async function processExtractText(mat, rects) {
+        for (let index = 0; index < rects.length; index++) {
+          const rect = rects[index];
+          let mat_roi = mat.roi(expandRect(rect, mat, 3));
+          let text = await extractTextWithWorker(mat_roi);
+
+          if (text == null && templateRank1Mat) {
+            const match = detectRank1WithTemplate(mat_roi, templateRank1Mat);
+            if (match) text = "1";
+            else error_cnt++;
+          }
+
+          items.push({ mat: mat_roi, index: cnt, text: text });
+          cnt++;
+        }
+      }
+
       $("#input-file").on("change", async function (e) {
         const files = e.target.files;
         if (!files.length) return;
@@ -81,44 +135,34 @@
         $("#progress-bar").css("width", "0%");
 
         init();
-        let filePromises = [];
-        let completed = 0;
+        tesseractWorkers = await createWorkerPool(WORKER_COUNT);
+        workerIndex = 0;
 
+        let completed = 0;
         const updateProgress = () => {
           completed++;
           const percent = Math.floor((completed / files.length) * 100);
           $("#progress-bar").css("width", `${percent}%`);
         };
 
-        // 複数ファイルの処理
+        let filePromises = [];
+
         for (const file of files) {
           if (!validImageTypes.includes(file.type)) continue;
-
-        // Array.from(files).forEach((file, index) => {
-          // if (file) {
-          //   if (!validImageTypes.includes(file.type)) {
-          //     $(this).val('');
-          //     return;
-          //   }
-          // }
 
           const promise = new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = function (e) {
-            
               let img = new Image();
               img.onload = async function () {
-
                 let mat = cv.imread(img);
                 let rects = detectRectangles(mat, 500, 500, 3000, 3000);
 
                 if (rects.length > 0) {
                   mat = mat.roi(expandRect(rects[0], mat, -30));
                   rects = detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight);
-
                   await processExtractText(mat, rects);
                 }
-
                 updateProgress();
                 resolve();
               };
@@ -131,138 +175,40 @@
         }
 
         await Promise.all(filePromises);
-
         $("#progress-container").fadeOut();
 
-        if (items.length > 0 ) {
+        for (const worker of tesseractWorkers) {
+          await worker.terminate();
+        }
+        tesseractWorkers = [];
+
+        if (items.length > 0) {
           $("#download-button").prop("disabled", false).show();
         }
       });
-
-      async function processExtractText(mat, rects) {
-        for (let index = 0; index < rects.length; index++) {
-          const rect = rects[index];
-
-          // ROIを取得
-          let mat_roi = mat.roi(expandRect(rect, mat, 3));
-
-
-
-          // extractText の非同期処理
-          let text = await extractText(mat_roi);
-
-          if (text == null) {
-            if (templateRank1Mat) {
-              const match = detectRank1WithTemplate(mat_roi, templateRank1Mat);
-
-              if (match) {
-                text = "1";  // テンプレートマッチングで「1」を認識
-              } else {
-                text = null;
-                error_cnt++;
-              }
-            }
-          }
-
-          items.push({
-            mat: mat_roi,
-            index: cnt,
-            text: text
-          });
-
-          cnt++;
-        }
-      }
-
-      // ダウンロードボタンの処理
-      $("#download-button").on("click", async function () {
-        console.log("[DEBUG] ダウンロードボタンが押されました");
-        console.log(`[DEBUG] items.length = ${items.length}`);
-
-        let zip = new JSZip(); // ZIPを作成
-        let folder = zip.folder("cropped_images"); // ZIPフォルダ作成
-
-        // すべての非同期操作を追跡するための配列
-        let promises = [];
-
-        // 各画像ごとに矩形を処理
-        items.forEach((item, index) => {
-
-          // 一時的なcanvasを作成
-          let tmpCanvas = document.createElement("canvas");
-          let tmpCtx = tmpCanvas.getContext("2d");
-          tmpCanvas.width = item.mat.cols;
-          tmpCanvas.height = item.mat.rows;
-          cv.imshow(tmpCanvas, item.mat);
-          let imgData = tmpCanvas.toDataURL("image/png");
-
-          // Base64データをBlobに変換してZIPに追加
-          let promise = fetch(imgData)
-            .then(res => res.blob())
-            .then(blob => {
-              if (item.text) {
-                folder.file(`cropped_image_${item.text}.png`, blob);
-              }
-              else {
-                folder.file(`error.png`, blob);
-              }
-            });
-
-          // Promiseを配列に追加
-          promises.push(promise);
-        });
-
-        // すべての非同期操作が完了するのを待つ
-        Promise.all(promises).then(() => {
-          // ZIPファイルを生成してダウンロード
-          zip.generateAsync({ type: "blob" }).then((content) => {
-            let link = document.createElement("a");
-            link.href = URL.createObjectURL(content);
-            link.download = "cropped_images.zip"; // ZIPファイル名
-            link.click();
-          });
-        });
-      });
-
-      function init() {
-        items = [];
-        cnt = 0;
-        error_cnt = 0;
-      }
 
       function expandRect(rect, mat, expanded_pixel) {
         let x = Math.max(0, rect.x - expanded_pixel);
         let y = Math.max(0, rect.y - expanded_pixel);
         let width = Math.min(mat.cols - x, rect.width + (expanded_pixel * 2));
         let height = Math.min(mat.rows - y, rect.height + (expanded_pixel * 2));
-
         return new cv.Rect(x, y, width, height);
       }
 
       function detectRectangles(mat, minWidth, minHeight, maxWidth, maxHeight) {
-        // 2値化処理
         let gray = new cv.Mat();
         cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
-
-        // エッジ検出
         let edges = new cv.Mat();
         cv.Canny(gray, edges, 300, 300);
-
-        // 輪郭検出
         let contours = new cv.MatVector();
         let hierarchy = new cv.Mat();
         cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-        let rects = []; // 輪郭から検出した矩形を格納
-
-        // 輪郭から矩形を検出
+        let rects = [];
         for (let i = 0; i < contours.size(); i++) {
           let contour = contours.get(i);
           let approx = new cv.Mat();
-          // 精度を少し緩和して、丸みを帯びた角を認識しやすくする
-          cv.approxPolyDP(contour, approx, 0.05 * cv.arcLength(contour, true), true);  // 精度を調整
-
-          // 角が丸い矩形も検出するために、四辺形をチェックする
+          cv.approxPolyDP(contour, approx, 0.05 * cv.arcLength(contour, true), true);
           if (approx.rows === 4 && cv.isContourConvex(approx)) {
             let rect = cv.boundingRect(approx);
             if (rect.width >= minWidth && rect.height >= minHeight && rect.width <= maxWidth && rect.height <= maxHeight) {
@@ -280,38 +226,6 @@
         return rects;
       }
 
-      async function extractText(mat) {
-        let trimMat = mat.roi(new cv.Rect(
-          Math.trunc(trimmingRatio_X * mat.cols),
-          Math.trunc(trimmingRatio_Y * mat.rows),
-          Math.trunc(trimmingRatio_Width * mat.cols),
-          Math.trunc(trimmingRatio_Height * mat.rows)
-        ));
-
-        let canvas = document.createElement('canvas');
-        let ctx = canvas.getContext('2d');
-        canvas.width = trimMat.cols;
-        canvas.height = trimMat.rows;
-        cv.imshow(canvas, trimMat);
-
-        let imageData = canvas.toDataURL();
-
-        // Tesseract.jsで文字認識を実行
-        let text = null;
-        await Tesseract.recognize(imageData, 'eng').then(({ data: { text: recognizedText } }) => {
-          const regex = /\b\d+\b/g;
-          let matches = recognizedText.match(regex);
-          if (matches) {
-            text = matches[0];  // マッチした数字を返す
-          }
-          else {
-            text = null;
-          }
-        });
-
-        return text;
-      }
-
       function detectRank1WithTemplate(mat, templateMat) {
         const result = new cv.Mat();
         const matchThreshold = 0.6;
@@ -323,33 +237,48 @@
           foundMatch = true;
         }
 
-        // const scales = [0.9, 1.0, 1.1];
-
-        // for (let scale of scales) {
-        //   let resizedTemplate = new cv.Mat();
-        //   let newSize = new cv.Size(
-        //     Math.round(templateMat.cols * scale),
-        //     Math.round(templateMat.rows * scale)
-        //   );
-        //   cv.resize(templateMat, resizedTemplate, newSize, 0, 0, cv.INTER_AREA);
-
-        //   if (mat.cols >= resizedTemplate.cols && mat.rows >= resizedTemplate.rows) {
-        //     cv.matchTemplate(mat, resizedTemplate, result, cv.TM_CCOEFF_NORMED);
-        //     let minMax = cv.minMaxLoc(result);
-        //     if (minMax.maxVal > matchThreshold) {
-        //       foundMatch = true;
-        //       resizedTemplate.delete();
-        //       break;
-        //     }
-        //   }
-
-        //   resizedTemplate.delete();
-        // }
-
         result.delete();
         return foundMatch;
       }
 
+      $("#download-button").on("click", async function () {
+        let zip = new JSZip();
+        let folder = zip.folder("cropped_images");
+        let promises = [];
+
+        items.forEach((item) => {
+          let tmpCanvas = document.createElement("canvas");
+          let tmpCtx = tmpCanvas.getContext("2d");
+          tmpCanvas.width = item.mat.cols;
+          tmpCanvas.height = item.mat.rows;
+          cv.imshow(tmpCanvas, item.mat);
+          let imgData = tmpCanvas.toDataURL("image/png");
+
+          let promise = fetch(imgData)
+            .then(res => res.blob())
+            .then(blob => {
+              const fileName = item.text ? `cropped_image_${item.text}.png` : `error.png`;
+              folder.file(fileName, blob);
+            });
+
+          promises.push(promise);
+        });
+
+        Promise.all(promises).then(() => {
+          zip.generateAsync({ type: "blob" }).then((content) => {
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(content);
+            link.download = "cropped_images.zip";
+            link.click();
+          });
+        });
+      });
+
+      function init() {
+        items = [];
+        cnt = 0;
+        error_cnt = 0;
+      }
     };
   </script>
 </body>
