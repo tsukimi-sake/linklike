@@ -61,11 +61,6 @@
       background-color: #e6f3fc;
     }
 
-    #drop-area p {
-      margin: 0;
-      font-size: 14px;
-    }
-
     #progress-container {
       width: 80%;
       height: 20px;
@@ -263,6 +258,45 @@
         };
 
         let filePromises = [];
+
+        // サイズ確認用の配列
+        let imageSizes = [];
+        let sizeMismatch = false;
+
+        for (const file of files) {
+          if (!validImageTypes.includes(file.type)) continue;
+
+          const imgSizePromise = new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              let img = new Image();
+              img.onload = function () {
+                const currentSize = { width: img.width, height: img.height };
+
+                // 最初の画像以外はサイズ比較
+                if (imageSizes.length > 0) {
+                  const baseSize = imageSizes[0];
+                  if (currentSize.width !== baseSize.width || currentSize.height !== baseSize.height) {
+                    sizeMismatch = true;
+                  }
+                }
+                imageSizes.push(currentSize);
+                resolve();
+              };
+              img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+          });
+
+          await imgSizePromise;
+
+          if (sizeMismatch) {
+            alert("異なるサイズの画像が含まれています。すべて同じサイズの画像を選択してください。");
+            return; // 処理を中断
+          }
+        }
+
+
 
         for (const file of files) {
           if (!validImageTypes.includes(file.type)) continue;
