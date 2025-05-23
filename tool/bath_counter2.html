@@ -3,12 +3,18 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+
   <title>風呂さやアンペアまちカウンター</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
   <style>
+    button {
+      touch-action: manipulation;
+    }
+
     body {
       margin: 0;
       font-family: sans-serif;
@@ -46,7 +52,8 @@
 
     .decrement-btn,
     .btn-gray,
-    .btn-yellow-gradient {
+    .btn-yellow-gradient,
+    .btn-blue-yellow-gradient {
       font-size: 16px;
       border-radius: 8px;
       padding: 6px 0;
@@ -114,6 +121,15 @@
     #all-increment {
       height: 100px;
       font-size: 20px;
+    }
+
+    .btn-gradient:active,
+    .decrement-btn:active,
+    .btn-gray:active,
+    .btn-yellow-gradient:active,
+    .btn-blue-yellow-gradient:active {
+      transform: scale(0.97);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
     }
   </style>
 </head>
