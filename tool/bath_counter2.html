@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>風呂さやアンペアまちカウンター</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background-color: #f8f9fa;
+    }
+
+    .title {
+      background: linear-gradient(to right, #80c4f3, #878ef8);
+      color: white;
+      padding: 20px;
+      font-size: 22px;
+      text-align: center;
+    }
+
+    .counter-box {
+      position: relative;
+      background-color: white;
+      border: 2px solid #80c4f3;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .count-value {
+      font-size: 40px;
+      margin-bottom: 20px;
+    }
+
+    .counter-buttons {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .decrement-btn,
+    .btn-gray,
+    .btn-yellow-gradient {
+      font-size: 16px;
+      border-radius: 8px;
+      padding: 6px 0;
+      width: 45%;
+      border: none;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .decrement-btn {
+      background: linear-gradient(to right, #80c4f3, #878ef8);
+    }
+
+    .btn-gray {
+      background-color: #6c757d;
+    }
+
+    .btn-yellow-gradient {
+      background: linear-gradient(to right, #f6d365, #fda085);
+    }
+
+    .reset-btn {
+      position: absolute;
+      bottom: -12px;
+      right: -12px;
+      background-color: #adb5bd;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .counter-label {
+      position: absolute;
+      top: -12px;
+      left: 10px;
+      background-color: white;
+      border: 2px solid #80c4f3;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .btn-blue-yellow-gradient {
+      background: linear-gradient(90deg, rgba(128, 196, 243, 1) 0%, rgba(135, 142, 248, 1) 47%, rgba(246, 211, 101, 1) 53%, rgba(253, 160, 133, 1) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 0;
+      font-size: 18px;
+      font-weight: bold;
+      width: 100%;
+      height: 100px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    #all-decrement,
+    #all-increment {
+      height: 100px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="title">風呂さやアンペアまちカウンター</div>
+
+  <div class="container mt-4">
+    <div class="row mb-3 align-items-center">
+      <div class="col-12">
+        <button id="half-action" class="btn-blue-yellow-gradient">
+          <i class="fa fa-minus"></i> / <i class="fa fa-plus"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row mb-3 gx-2">
+      <div class="col-6">
+        <button id="all-decrement" class="decrement-btn w-100"><i class="fa fa-minus"></i></button>
+      </div>
+      <div class="col-6">
+        <button id="all-increment" class="btn-gray w-100"><i class="fa fa-plus"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row" id="counter-area"></div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    function createCounterBox(id, value, label) {
+      let decrementClass = "decrement-btn";
+      let incrementClass = "btn-gray";
+
+      if (id === "kachimachi") {
+        decrementClass = "btn-gray";
+        incrementClass = "btn-yellow-gradient";
+      }
+
+      return `
+        <div class="col-md-4" id="col-${id}">
+          <div class="counter-box" data-id="${id}">
+            <div class="counter-label">${label}</div>
+            <button class="reset-btn" data-id="${id}">
+              <i class="fa-solid fa-arrow-rotate-left"></i>
+            </button>
+            <div class="count-value" id="count-${id}">${value}</div>
+            <div class="counter-buttons">
+              <button class="${decrementClass}" data-id="${id}"><i class="fa fa-minus"></i></button>
+              <button class="${incrementClass}" data-id="${id}"><i class="fa fa-plus"></i></button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function updateCounter(id, delta) {
+      const $count = $(`#count-${id}`);
+      let value = parseInt($count.text(), 10);
+      value = Math.max(0, Math.min(20, value + delta));
+      $count.text(value);
+    }
+
+    $(function () {
+      $('#counter-area').append(
+        createCounterBox("sayaka_A", 20, "風呂さやA"),
+        createCounterBox("sayaka_B", 0, "風呂さやB"),
+        createCounterBox("kachimachi", 0, "アンペアまち")
+      );
+
+      $('#counter-area').on('click', '.decrement-btn', function () {
+        const id = $(this).data('id');
+        updateCounter(id, id === "kachimachi" ? 1 : -1);
+      });
+
+      $('#counter-area').on('click', '.btn-gray', function () {
+        const id = $(this).data('id');
+        updateCounter(id, id === "kachimachi" ? -1 : 1);
+      });
+
+      $('#counter-area').on('click', '.btn-yellow-gradient', function () {
+        const id = $(this).data('id');
+        updateCounter(id, 1);
+      });
+
+      $('#all-decrement').click(function () {
+        $('.count-value').each(function () {
+          const id = this.id.split('-')[1];
+          if (id !== "kachimachi") updateCounter(id, -1);
+        });
+      });
+
+      $('#all-increment').click(function () {
+        $('.count-value').each(function () {
+          const id = this.id.split('-')[1];
+          if (id !== "kachimachi") updateCounter(id, 1);
+        });
+      });
+
+      $('#counter-area').on('click', '.reset-btn', function () {
+        const id = $(this).data('id');
+        $(`#count-${id}`).text(id === "kachimachi" ? 0 : 20);
+      });
+
+      $('#half-action').click(function () {
+        $('.count-value').each(function () {
+          const id = this.id.split('-')[1];
+          updateCounter(id, id === "kachimachi" ? 1 : -1);
+        });
+      });
+    });
+  </script>
+</body>
+
+</html>
