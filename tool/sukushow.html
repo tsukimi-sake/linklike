@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数字配置システム</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    .number-table {
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    .number-cell {
+      width: 16.66%;
+      height: 50px;
+      text-align: center;
+      vertical-align: middle;
+      cursor: pointer;
+      border: 2px solid #dee2e6;
+      position: relative;
+    }
+
+    .number-cell:hover {
+      background-color: #f8f9fa;
+    }
+
+    .fever-cell {
+      background-color: #ff6b6b;
+      color: white;
+      font-weight: bold;
+    }
+
+    .modified-cell::after {
+      content: "★";
+      position: absolute;
+      top: 2px;
+      right: 5px;
+      color: #ffd700;
+      font-size: 12px;
+    }
+
+    .header-controls {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .column-header {
+      background-color: #343a40;
+      color: white;
+      font-weight: bold;
+      position: relative;
+    }
+
+    .remove-toggle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      font-size: 12px;
+    }
+
+    .remove-active {
+      background-color: #dc3545;
+    }
+
+    .remove-count {
+      font-size: 10px;
+      position: absolute;
+      bottom: 2px;
+      right: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container-fluid mt-3">
+    <h1 class="text-center mb-4"><i class="fas fa-table"></i> 数字配置システム</h1>
+
+    <!-- 設定パネル -->
+    <div class="header-controls">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">最大数字</label>
+          <input type="number" id="maxNumber" class="form-control" value="50" min="1" max="1000">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">フィーバー開始</label>
+          <input type="number" id="feverStart" class="form-control" value="5" min="1">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">フィーバー終了</label>
+          <input type="number" id="feverEnd" class="form-control" value="10" min="1">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button id="updateTable" class="btn btn-primary me-2">
+            <i class="fas fa-sync-alt"></i> 更新
+          </button>
+          <button id="resetTable" class="btn btn-warning">
+            <i class="fas fa-undo"></i> リセット
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 列除去設定 -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <h5>列除去設定</h5>
+        <div class="row" id="columnSettings">
+          <!-- 動的に生成される -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 数字表 -->
+    <div class="table-responsive">
+      <table class="table table-bordered number-table" id="numberTable">
+        <thead>
+          <tr id="tableHeader">
+            <!-- 動的に生成される -->
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- 動的に生成される -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 操作説明 -->
+    <div class="alert alert-info mt-3">
+      <h6><i class="fas fa-info-circle"></i> 操作方法</h6>
+      <ul class="mb-0">
+        <li>セルをダブルクリック: 次の数字配置を次の行の左端に変更</li>
+        <li>もう一度ダブルクリック: 元の配置に戻す</li>
+        <li>フィーバー区間の数字は赤色で表示</li>
+        <li>★マークは配置変更されたセル</li>
+        <li>除去設定ONの列は指定回数後にスキップ</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+      let modifiedCells = new Set();
+      let columnRemoveSettings = {};
+      let columnCounts = {};
+      let tableData = [];
+
+      // 初期化
+      initializeColumnSettings();
+      updateTable();
+
+      // 列設定の初期化
+      function initializeColumnSettings() {
+        const settingsHtml = columns.map(col => `
+                    <div class="col-md-2">
+                        <div class="card">
+                            <div class="card-body p-2">
+                                <h6 class="card-title text-center">${col}列</h6>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="remove${col}">
+                                    <label class="form-check-label" for="remove${col}">除去</label>
+                                </div>
+                                <input type="number" id="count${col}" class="form-control form-control-sm mt-1" 
+                                       value="3" min="1" max="10" placeholder="回数">
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+        $('#columnSettings').html(settingsHtml);
+
+        // 除去設定の初期化
+        columns.forEach(col => {
+          columnRemoveSettings[col] = false;
+          columnCounts[col] = { max: 3, current: 0 };
+        });
+      }
+
+      // 表の更新
+      function updateTable() {
+        const maxNum = parseInt($('#maxNumber').val());
+        const feverStart = parseInt($('#feverStart').val());
+        const feverEnd = parseInt($('#feverEnd').val());
+
+        // 除去設定の更新
+        columns.forEach(col => {
+          columnRemoveSettings[col] = $(`#remove${col}`).prop('checked');
+          columnCounts[col].max = parseInt($(`#count${col}`).val()) || 3;
+        });
+
+        generateTable(maxNum, feverStart, feverEnd);
+      }
+
+      // 表の生成
+      function generateTable(maxNum, feverStart, feverEnd) {
+        // ヘッダー生成
+        const headerHtml = columns.map(col => `
+                    <th class="column-header number-cell">
+                        ${col}
+                        <div class="remove-toggle">
+                            ${columnRemoveSettings[col] ? '<i class="fas fa-ban text-danger"></i>' : ''}
+                        </div>
+                        <div class="remove-count">
+                            ${columnRemoveSettings[col] ? `${columnCounts[col].current}/${columnCounts[col].max}` : ''}
+                        </div>
+                    </th>
+                `).join('');
+        $('#tableHeader').html(headerHtml);
+
+        // データ生成
+        tableData = [];
+        columnCounts = {};
+        columns.forEach(col => {
+          columnCounts[col] = { max: columnRemoveSettings[col] ? parseInt($(`#count${col}`).val()) || 3 : 999, current: 0 };
+        });
+
+        let currentNum = 1;
+        let row = 0, col = 0;
+        let nextRowStart = false;
+
+        while (currentNum <= maxNum) {
+          if (!tableData[row]) {
+            tableData[row] = new Array(6).fill(null);
+          }
+
+          // 次の行開始フラグの処理
+          if (nextRowStart) {
+            row++;
+            col = 0;
+            nextRowStart = false;
+            if (!tableData[row]) {
+              tableData[row] = new Array(6).fill(null);
+            }
+          }
+
+          // 列の除去設定チェック
+          const colLetter = columns[col];
+          if (columnRemoveSettings[colLetter] && columnCounts[colLetter].current >= columnCounts[colLetter].max) {
+            // この列をスキップ
+            col++;
+            if (col >= 6) {
+              row++;
+              col = 0;
+            }
+            continue;
+          }
+
+          // 数字を配置
+          tableData[row][col] = currentNum;
+
+          // カウント更新
+          if (columnRemoveSettings[colLetter]) {
+            columnCounts[colLetter].current++;
+          }
+
+          // 修正セルの処理
+          const cellKey = `${row}-${col}`;
+          if (modifiedCells.has(cellKey)) {
+            nextRowStart = true;
+          }
+
+          currentNum++;
+
+          if (!nextRowStart) {
+            col++;
+            if (col >= 6) {
+              row++;
+              col = 0;
+            }
+          }
+        }
+
+        renderTable(feverStart, feverEnd);
+      }
+
+      // 表の描画
+      function renderTable(feverStart, feverEnd) {
+        let bodyHtml = '';
+
+        for (let r = 0; r < tableData.length; r++) {
+          bodyHtml += '<tr>';
+          for (let c = 0; c < 6; c++) {
+            const num = tableData[r][c];
+            const cellKey = `${r}-${c}`;
+            let cellClass = 'number-cell';
+
+            if (num !== null && num >= feverStart && num <= feverEnd) {
+              cellClass += ' fever-cell';
+            }
+
+            if (modifiedCells.has(cellKey)) {
+              cellClass += ' modified-cell';
+            }
+
+            bodyHtml += `<td class="${cellClass}" data-row="${r}" data-col="${c}">
+                            ${num !== null ? num : ''}
+                        </td>`;
+          }
+          bodyHtml += '</tr>';
+        }
+
+        $('#tableBody').html(bodyHtml);
+      }
+
+      // セルのダブルクリックイベント
+      $(document).on('dblclick', '.number-cell:not(.column-header)', function () {
+        const row = parseInt($(this).data('row'));
+        const col = parseInt($(this).data('col'));
+        const cellKey = `${row}-${col}`;
+
+        if ($(this).text().trim() === '') return;
+
+        if (modifiedCells.has(cellKey)) {
+          modifiedCells.delete(cellKey);
+        } else {
+          modifiedCells.add(cellKey);
+        }
+
+        updateTable();
+      });
+
+      // 更新ボタン
+      $('#updateTable').click(function () {
+        updateTable();
+      });
+
+      // リセットボタン
+      $('#resetTable').click(function () {
+        modifiedCells.clear();
+        columns.forEach(col => {
+          $(`#remove${col}`).prop('checked', false);
+          $(`#count${col}`).val(3);
+        });
+        $('#maxNumber').val(50);
+        $('#feverStart').val(5);
+        $('#feverEnd').val(10);
+        updateTable();
+      });
+
+      // 入力値変更時の自動更新
+      $('#maxNumber, #feverStart, #feverEnd').change(function () {
+        updateTable();
+      });
+
+      // 除去設定変更時の自動更新
+      $(document).on('change', '[id^="remove"], [id^="count"]', function () {
+        updateTable();
+      });
+    });
+  </script>
+</body>
+
+</html>
