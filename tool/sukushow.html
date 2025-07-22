@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>数字配置システム</title>
+  <title>スクショウ編成考え中</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <style>
@@ -27,9 +27,9 @@
       background-color: #f8f9fa;
     }
 
-    .fever-cell {
-      background-color: #ff6b6b;
-      color: white;
+    .table .fever-cell {
+      background-color: #ffffb7;
+      /* color: white; */
       font-weight: bold;
     }
 
@@ -78,27 +78,22 @@
 
 <body>
   <div class="container-fluid mt-3">
-    <h1 class="text-center mb-4"><i class="fas fa-table"></i> 数字配置システム</h1>
-
     <!-- 設定パネル -->
     <div class="header-controls">
       <div class="row g-3">
-        <div class="col-md-3">
-          <label class="form-label">最大数字</label>
+        <div class="col-md-3 col-sm-6 col-6 mb-2">
+          <label class="form-label">最大スキル発動回数</label>
           <input type="number" id="maxNumber" class="form-control" value="25" min="1" max="1000">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-sm-6 col-6 mb-2">
           <label class="form-label">フィーバー開始</label>
-          <input type="number" id="feverStart" class="form-control" value="10" min="1">
+          <input type="number" id="feverStart" class="form-control" value="15" min="1">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 col-sm-6 col-6 mb-2">
           <label class="form-label">フィーバー終了</label>
-          <input type="number" id="feverEnd" class="form-control" value="15" min="1">
+          <input type="number" id="feverEnd" class="form-control" value="20" min="1">
         </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <button id="updateTable" class="btn btn-primary me-2">
-            <i class="fas fa-sync-alt"></i> 更新
-          </button>
+        <div class="col-md-3 col-sm-6 col-6 mb-2 d-flex align-items-end">
           <button id="resetTable" class="btn btn-warning">
             <i class="fas fa-undo"></i> リセット
           </button>
@@ -106,12 +101,12 @@
       </div>
     </div>
 
-    <!-- 列除去設定 -->
+    <!-- 除去設定 -->
     <div class="row mb-3">
       <div class="col-12">
-        <h5>列除去設定</h5>
+        <h5>除去設定</h5>
         <div class="row" id="columnSettings">
-          <!-- 動的に生成される -->
+          <!-- 動的生成 -->
         </div>
       </div>
     </div>
@@ -121,11 +116,11 @@
       <table class="table table-bordered number-table" id="numberTable">
         <thead>
           <tr id="tableHeader">
-            <!-- 動的に生成される -->
+            <!-- 動的生成 -->
           </tr>
         </thead>
         <tbody id="tableBody">
-          <!-- 動的に生成される -->
+          <!-- 動的生成 -->
         </tbody>
       </table>
     </div>
@@ -134,11 +129,8 @@
     <div class="alert alert-info mt-3">
       <h6><i class="fas fa-info-circle"></i> 操作方法</h6>
       <ul class="mb-0">
-        <li>セルをダブルクリック: 次の数字配置を次の行の左端に変更</li>
-        <li>もう一度ダブルクリック: 元の配置に戻す</li>
-        <li>フィーバー区間の数字は赤色で表示</li>
-        <li>★マークは配置変更されたセル</li>
-        <li>除去設定ONの列は指定回数後にスキップ</li>
+        <li>セルをダブルクリック: デッキリセット</li>
+        <li>もう一度ダブルクリック: デッキリセット解除</li>
       </ul>
     </div>
   </div>
@@ -160,10 +152,10 @@
       // 列設定の初期化
       function initializeColumnSettings() {
         const settingsHtml = columns.map(col => `
-                    <div class="col-md-2">
+                    <div class="col-md-2 col-sm-6 mb-sm-2 col-6 mb-2">
                         <div class="card">
                             <div class="card-body p-2">
-                                <h6 class="card-title text-center">${col}列</h6>
+                                <h6 class="card-title text-center">${col}</h6>
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="remove${col}">
                                     <label class="form-check-label" for="remove${col}">除去</label>
@@ -326,11 +318,6 @@
         updateTable();
       });
 
-      // 更新ボタン
-      $('#updateTable').click(function () {
-        updateTable();
-      });
-
       // リセットボタン
       $('#resetTable').click(function () {
         modifiedCells.clear();
@@ -338,9 +325,9 @@
           $(`#remove${col}`).prop('checked', false);
           $(`#count${col}`).val(3);
         });
-        $('#maxNumber').val(50);
-        $('#feverStart').val(5);
-        $('#feverEnd').val(10);
+        $('#maxNumber').val(25);
+        $('#feverStart').val(15);
+        $('#feverEnd').val(20);
         updateTable();
       });
 
